@@ -1,0 +1,90 @@
+From 7f395e0bdb529f2ea6fe2234956e04869a3464e6 Mon Sep 17 00:00:00 2001
+From: Michal Sekletar <msekleta@redhat.com>
+Date: Fri, 2 Nov 2018 12:10:12 +0000
+Subject: [PATCH] core: if interface already has name in expected format (i.e.
+ <prefix><number>) print the name to stdout
+
+This is needed in order to prevent renaming back to name given by one of
+built-in naming schemes.
+
+For example, NIC appears in initrd (during system installation) and gets
+renamed to net0. Later we switch root to anaconda's stage2 and all HW is
+cold-plugged. Prefixdevname should figure out that renaming is not
+necessary. However, if we don't print anything to stdout (i.e. nothing
+gets assigned to NAME= variable) then logic in subsequent rules
+eventually renames interface to some other name determined by net_id.
+---
+ src/main.rs |  6 ++++--
+ src/util.rs | 20 ++++++++++----------
+ 2 files changed, 14 insertions(+), 12 deletions(-)
+
+diff --git a/src/main.rs b/src/main.rs
+index 5c1a42b..b0c02b8 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -37,8 +37,10 @@ fn main() {
+         exit_maybe_unlock(None, 0);
+     }
+ 
+-    if ! rename_needed(&prefix).unwrap() {
+-        info!("Interface name already has expected format, not renaming again");
++    let ifname = event_device_name();
++
++    if ! rename_needed(&ifname, &prefix).unwrap() {
++        println!("{}", ifname);
+         exit_maybe_unlock(None, 0);
+     }
+ 
+diff --git a/src/util.rs b/src/util.rs
+index 8727074..98eb32f 100644
+--- a/src/util.rs
++++ b/src/util.rs
+@@ -11,14 +11,18 @@ use regex::Regex;
+ 
+ use sema::*;
+ 
+-pub fn rename_needed(prefix: &str) -> Result<bool, Box<Error>> {
+-    // TODO: if INTERFACE is unset we should probably check sysname
+-    let ifname = env::var("INTERFACE").unwrap_or("".to_string());
++pub fn rename_needed(ifname: &str, prefix: &str) -> Result<bool, Box<Error>> {
+     let re: Regex = Regex::new(&format!("{}\\d+", prefix)).unwrap();
+ 
+     Ok(!re.is_match(&ifname))
+ }
+ 
++pub fn event_device_name() -> String {
++    let ifname = env::var("INTERFACE").unwrap_or("".to_string());
++
++    ifname.to_string()
++}
++
+ pub fn hwaddr_valid<T: ToString>(hwaddr: &T) -> bool {
+     use std::num::ParseIntError;
+ 
+@@ -172,20 +176,16 @@ mod tests {
+ 
+     #[test]
+     fn rename_is_needed() {
+-        env::set_var("INTERFACE", "eth0");
+-
+-        assert_eq!(rename_needed("net").unwrap(), true);
++        assert_eq!(rename_needed("eth0", "net").unwrap(), true);
+     }
+ 
+     #[test]
+     fn rename_not_needed() {
+-        env::set_var("INTERFACE", "net0");
+-
+-        assert_eq!(rename_needed("net").unwrap(), false);
++        assert_eq!(rename_needed("net0", "net").unwrap(), false);
+     }
+ 
+     #[test]
+     fn rename_needed_interface_unset() {
+-        assert_eq!(rename_needed("net").unwrap(), true);
++        assert_eq!(rename_needed("", "net").unwrap(), true);
+     }
+ }
+-- 
+2.17.2
+

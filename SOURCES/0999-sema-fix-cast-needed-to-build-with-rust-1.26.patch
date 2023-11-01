@@ -1,0 +1,25 @@
+From 7205027f998d956df125da517d0eb9c03515f1f1 Mon Sep 17 00:00:00 2001
+From: rpm-build <rpm-build>
+Date: Fri, 10 Aug 2018 18:58:54 +0200
+Subject: [PATCH] sema: fix cast (needed to build with rust-1.26)
+
+---
+ src/sema.rs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/sema.rs b/src/sema.rs
+index 4a9a63e..5be3dc8 100644
+--- a/src/sema.rs
++++ b/src/sema.rs
+@@ -16,7 +16,7 @@ impl Semaphore {
+ 
+         let s;
+         unsafe {
+-            s = libc::sem_open(raw_sema_name.as_ptr() as *const i8, libc::O_CREAT, libc::S_IRUSR | libc::S_IWUSR, 1);
++            s = libc::sem_open(raw_sema_name.as_ptr() as *const u8, libc::O_CREAT, libc::S_IRUSR | libc::S_IWUSR, 1);
+             if s.is_null() {
+                 return Err(From::from("Failed to allocate named semaphore, sem_open() failed"));
+             }
+-- 
+2.14.4
+
