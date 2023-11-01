@@ -1,0 +1,73 @@
+From c55c64cce2449b4616b3f71b42fedc1e3098a04c Mon Sep 17 00:00:00 2001
+From: Michal Sekletar <msekleta@redhat.com>
+Date: Fri, 21 Sep 2018 08:42:58 +0000
+Subject: [PATCH] core: don't rename interfaces that already have the name in
+ expected format
+
+---
+ src/main.rs |  5 +++++
+ src/util.rs | 27 +++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+)
+
+diff --git a/src/main.rs b/src/main.rs
+index 54f4de4..5c1a42b 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -37,6 +37,11 @@ fn main() {
+         exit_maybe_unlock(None, 0);
+     }
+ 
++    if ! rename_needed(&prefix).unwrap() {
++        info!("Interface name already has expected format, not renaming again");
++        exit_maybe_unlock(None, 0);
++    }
++
+     let mut sema = match Semaphore::new_with_name("net-prefix-ifnames") {
+         Ok(s) => s,
+         Err(e) => {
+diff --git a/src/util.rs b/src/util.rs
+index 85a1090..8727074 100644
+--- a/src/util.rs
++++ b/src/util.rs
+@@ -11,6 +11,14 @@ use regex::Regex;
+ 
+ use sema::*;
+ 
++pub fn rename_needed(prefix: &str) -> Result<bool, Box<Error>> {
++    // TODO: if INTERFACE is unset we should probably check sysname
++    let ifname = env::var("INTERFACE").unwrap_or("".to_string());
++    let re: Regex = Regex::new(&format!("{}\\d+", prefix)).unwrap();
++
++    Ok(!re.is_match(&ifname))
++}
++
+ pub fn hwaddr_valid<T: ToString>(hwaddr: &T) -> bool {
+     use std::num::ParseIntError;
+ 
+@@ -161,4 +169,23 @@ mod tests {
+     fn long_prefix_not_ok() {
+         assert_eq!(false, prefix_ok(&"neeeeeeeeeeeeeeet"));
+     }
++
++    #[test]
++    fn rename_is_needed() {
++        env::set_var("INTERFACE", "eth0");
++
++        assert_eq!(rename_needed("net").unwrap(), true);
++    }
++
++    #[test]
++    fn rename_not_needed() {
++        env::set_var("INTERFACE", "net0");
++
++        assert_eq!(rename_needed("net").unwrap(), false);
++    }
++
++    #[test]
++    fn rename_needed_interface_unset() {
++        assert_eq!(rename_needed("net").unwrap(), true);
++    }
+ }
+-- 
+2.17.1
+
