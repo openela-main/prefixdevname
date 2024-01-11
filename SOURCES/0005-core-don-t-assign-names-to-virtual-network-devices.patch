@@ -1,0 +1,65 @@
+From 58886377310bb2190c6364aa3df83d1858183446 Mon Sep 17 00:00:00 2001
+From: Michal Sekletar <msekleta@redhat.com>
+Date: Fri, 2 Nov 2018 16:25:58 +0000
+Subject: [PATCH] core: don't assign names to virtual network devices
+
+---
+ src/main.rs |  5 +++++
+ src/util.rs | 20 ++++++++++++++++++++
+ 2 files changed, 25 insertions(+)
+
+diff --git a/src/main.rs b/src/main.rs
+index b0c02b8..6eeb793 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -37,6 +37,11 @@ fn main() {
+         exit_maybe_unlock(None, 0);
+     }
+ 
++    if event_device_virtual() {
++        debug!("Called for virtual network device, ignoring");
++        exit_maybe_unlock(None, 0);
++    }
++
+     let ifname = event_device_name();
+ 
+     if ! rename_needed(&ifname, &prefix).unwrap() {
+diff --git a/src/util.rs b/src/util.rs
+index 98eb32f..50c6677 100644
+--- a/src/util.rs
++++ b/src/util.rs
+@@ -23,6 +23,12 @@ pub fn event_device_name() -> String {
+     ifname.to_string()
+ }
+ 
++pub fn event_device_virtual() -> bool {
++    let devpath = env::var("DEVPATH").unwrap_or("".to_string());
++
++    devpath.starts_with("/devices/virtual")
++}
++
+ pub fn hwaddr_valid<T: ToString>(hwaddr: &T) -> bool {
+     use std::num::ParseIntError;
+ 
+@@ -188,4 +194,18 @@ mod tests {
+     fn rename_needed_interface_unset() {
+         assert_eq!(rename_needed("", "net").unwrap(), true);
+     }
++
++    #[test]
++    fn event_device_not_virtual() {
++        env::set_var("DEVPATH", "/devices/pci0000:00/0000:00:03.0/virtio0/net/eth0");
++
++        assert_eq!(event_device_virtual(), false);
++    }
++
++    #[test]
++    fn event_device_is_virtual() {
++        env::set_var("DEVPATH", "/devices/virtual/net/bond0");
++
++        assert_eq!(event_device_virtual(), true);
++    }
+ }
+-- 
+2.17.2
+

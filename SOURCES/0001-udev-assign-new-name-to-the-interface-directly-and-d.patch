@@ -1,0 +1,43 @@
+From 1657894cf9a7a67de4e945d127d3a8ec8e3782a7 Mon Sep 17 00:00:00 2001
+From: Michal Sekletar <msekleta@redhat.com>
+Date: Tue, 14 Aug 2018 10:43:25 +0000
+Subject: [PATCH] udev: assign new name to the interface directly and don't
+ rely on net_setup_link
+
+---
+ rules/71-prefixdevname.rules | 2 +-
+ src/main.rs                  | 6 ++++--
+ 2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/rules/71-prefixdevname.rules b/rules/71-prefixdevname.rules
+index 15e2e1e..c45da2f 100644
+--- a/rules/71-prefixdevname.rules
++++ b/rules/71-prefixdevname.rules
+@@ -6,6 +6,6 @@ ATTR{type}!="1",  GOTO="net_ifnames_prefix_end"
+ 
+ IMPORT{cmdline}="net.ifnames.prefix"
+ ENV{net.ifnames.prefix}!="?*", GOTO="net_ifnames_prefix_end"
+-PROGRAM="/usr/lib/udev/prefixdevname"
++PROGRAM="/usr/lib/udev/prefixdevname", RESULT=="?*", NAME="$result"
+ 
+ LABEL="net_ifnames_prefix_end"
+diff --git a/src/main.rs b/src/main.rs
+index 15bb6fa..54f4de4 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -86,8 +86,10 @@ fn main() {
+         exit_maybe_unlock(Some(&mut sema), 1);
+     }
+ 
+-    info!("New link file was generated at {}", link_config.link_file_path().into_os_string().into_string().unwrap());
+-    info!("Consider rebuilding initrd image, using \"dracut -f\"");
++    debug!("New link file was generated at {}", link_config.link_file_path().into_os_string().into_string().unwrap());
++    debug!("Consider rebuilding initrd image, using \"dracut -f\"");
++
++    println!("{}", next_link_name);
+ 
+     sema.unlock();
+ }
+-- 
+2.17.1
+
