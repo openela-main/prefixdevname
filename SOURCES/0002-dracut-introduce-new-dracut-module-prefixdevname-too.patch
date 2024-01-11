@@ -1,0 +1,49 @@
+From b157be43805d90aef60c24530b9a0492abf00ebc Mon Sep 17 00:00:00 2001
+From: Michal Sekletar <msekleta@redhat.com>
+Date: Wed, 12 Sep 2018 14:36:34 +0000
+Subject: [PATCH] dracut: introduce new dracut module prefixdevname-tools
+
+This module will be used by lorax to make sure that prefixdevname is
+included in initrd.img used for system installation.
+---
+ Makefile                                     |  2 ++
+ dracut/71prefixdevname-tools/module-setup.sh | 11 +++++++++++
+ 2 files changed, 13 insertions(+)
+ create mode 100755 dracut/71prefixdevname-tools/module-setup.sh
+
+diff --git a/Makefile b/Makefile
+index fb930d4..982c5d9 100644
+--- a/Makefile
++++ b/Makefile
+@@ -25,9 +25,11 @@ check:
+ install:
+ 	mkdir -p $(DESTDIR)/usr/lib/udev/rules.d
+ 	mkdir -p $(DESTDIR)/usr/lib/dracut/modules.d/71prefixdevname
++	mkdir -p $(DESTDIR)/usr/lib/dracut/modules.d/71prefixdevname-tools
+ 	install -p -m 0755 target/release/$(NAME) $(DESTDIR)/usr/lib/udev/
+ 	install -p -m 644 rules/71-prefixdevname.rules $(DESTDIR)/usr/lib/udev/rules.d/
+ 	install -p -m 0755 dracut/71prefixdevname/module-setup.sh $(DESTDIR)/usr/lib/dracut/modules.d/71prefixdevname/
++	install -p -m 0755 dracut/71prefixdevname-tools/module-setup.sh $(DESTDIR)/usr/lib/dracut/modules.d/71prefixdevname-tools/
+ 
+ uninstall:
+ 	rm -f $(DESTDIR)/usr/lib/udev/$(NAME)
+diff --git a/dracut/71prefixdevname-tools/module-setup.sh b/dracut/71prefixdevname-tools/module-setup.sh
+new file mode 100755
+index 0000000..0ff010e
+--- /dev/null
++++ b/dracut/71prefixdevname-tools/module-setup.sh
+@@ -0,0 +1,11 @@
++#!/bin/bash
++
++# Include the prefixdevname tools only if this was explicitely requested
++check() {
++    return 255
++}
++
++install() {
++    inst /usr/lib/udev/prefixdevname
++    inst_rules 71-prefixdevname.rules
++}
+-- 
+2.17.1
+
